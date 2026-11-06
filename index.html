@@ -1,0 +1,2384 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#07070b">
+<title>FurryBrowser — браузер для тех, кто ценит приватность и стиль</title>
+<meta name="description" content="FurryBrowser — быстрый, безопасный и настраиваемый браузер на Python. Ваша приватность в надёжных лапах.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="FurryBrowser">
+<meta property="og:description" content="Быстрый, безопасный и настраиваемый браузер на Python. Ваша приватность в надёжных лапах.">
+<meta property="og:locale" content="ru_RU">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%237c5cff'/%3E%3Cpath d='M11 22c0-4 2-7 5-8 3 1 5 4 5 8' stroke='%2307070b' stroke-width='2.5' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='13' cy='14' r='1.5' fill='%2307070b'/%3E%3Ccircle cx='19' cy='14' r='1.5' fill='%2307070b'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#07070b;
+    --bg-soft:#0d0d15;
+    --panel:rgba(255,255,255,.035);
+    --panel-hi:rgba(255,255,255,.06);
+    --line:rgba(255,255,255,.09);
+    --text:#ececf3;
+    --muted:#8a8aa2;
+    --accent:#7c5cff;
+    --accent-2:#22d3ee;
+    --radius:20px;
+    --ease:cubic-bezier(.22,.85,.28,1);
+    --header-h:78px;
+    --pad:clamp(18px,4vw,26px);
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box}
+
+  html{
+    scroll-behavior:smooth;
+    scroll-padding-top:calc(var(--header-h) + 18px);
+    -webkit-text-size-adjust:100%;
+  }
+
+  body{
+    font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    line-height:1.65;
+    min-height:100%;
+    overflow-x:clip;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    -webkit-tap-highlight-color:transparent;
+    text-rendering:optimizeLegibility;
+  }
+
+  body::before{
+    content:'';
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    z-index:0;
+    background:
+      radial-gradient(900px 520px at 12% -8%, rgba(124,92,255,.22), transparent 60%),
+      radial-gradient(760px 460px at 88% 6%, rgba(34,211,238,.13), transparent 62%),
+      radial-gradient(700px 700px at 50% 108%, rgba(124,92,255,.10), transparent 65%);
+  }
+
+  body::after{
+    content:'';
+    position:fixed;
+    inset:0;
+    z-index:1;
+    pointer-events:none;
+    opacity:.18;
+    background-image:radial-gradient(rgba(255,255,255,.09) 1px, transparent 1px);
+    background-size:3px 3px;
+  }
+
+  body.locked{overflow:hidden}
+
+  .wrap{
+    width:100%;
+    max-width:1180px;
+    margin:0 auto;
+    padding:0 var(--pad);
+    position:relative;
+    z-index:2;
+  }
+
+  a{color:inherit;text-decoration:none}
+  ul{list-style:none}
+  img,svg{display:block;max-width:100%}
+  button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+
+  ::selection{background:rgba(124,92,255,.4);color:#fff}
+
+  :focus-visible{
+    outline:2px solid var(--accent-2);
+    outline-offset:3px;
+    border-radius:6px;
+  }
+
+  .site-header{
+    position:fixed;
+    top:0;left:0;right:0;
+    z-index:60;
+    border-bottom:1px solid transparent;
+    transition:background .35s var(--ease), border-color .35s var(--ease);
+  }
+
+  .site-header.stuck{
+    background:rgba(7,7,11,.72);
+    border-bottom-color:var(--line);
+  }
+
+  @supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+    .site-header.stuck{
+      backdrop-filter:blur(18px) saturate(140%);
+      -webkit-backdrop-filter:blur(18px) saturate(140%);
+    }
+  }
+
+  .nav{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    height:var(--header-h);
+    gap:24px;
+  }
+
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:11px;
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:19px;
+    letter-spacing:-.02em;
+    flex:none;
+  }
+
+  .brand-mark{
+    width:32px;height:32px;
+    border-radius:10px;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    display:grid;
+    place-items:center;
+    box-shadow:0 6px 22px -6px rgba(124,92,255,.8);
+    flex:none;
+  }
+
+  .brand-mark svg{
+    width:18px;height:18px;
+    color:#07070b;
+  }
+
+  .nav-links{
+    display:flex;
+    align-items:center;
+    gap:34px;
+    font-size:14.5px;
+    color:var(--muted);
+  }
+
+  .nav-links a{
+    position:relative;
+    transition:color .25s;
+    padding:4px 0;
+  }
+
+  .nav-links a::after{
+    content:'';
+    position:absolute;
+    left:0;bottom:-2px;
+    width:0;height:1.5px;
+    background:linear-gradient(90deg,var(--accent),var(--accent-2));
+    transition:width .3s var(--ease);
+  }
+
+  .nav-links a:hover,
+  .nav-links a.active{color:var(--text)}
+  .nav-links a:hover::after,
+  .nav-links a.active::after{width:100%}
+
+  .nav-cta{
+    font-size:14px;
+    font-weight:500;
+    padding:10px 20px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    background:var(--panel);
+    transition:background .3s var(--ease), border-color .3s var(--ease), transform .3s var(--ease);
+    white-space:nowrap;
+    flex:none;
+    display:inline-block;
+  }
+
+  .nav-cta:hover{
+    background:var(--panel-hi);
+    border-color:rgba(124,92,255,.55);
+    transform:translateY(-1px);
+  }
+
+  .burger{
+    display:none;
+    width:42px;height:42px;
+    border-radius:12px;
+    border:1px solid var(--line);
+    background:var(--panel);
+    position:relative;
+    flex:none;
+  }
+
+  .burger i{
+    position:absolute;
+    left:12px;
+    width:18px;height:1.6px;
+    background:var(--text);
+    border-radius:2px;
+    transition:transform .3s var(--ease), opacity .3s var(--ease);
+  }
+
+  .burger i:nth-child(1){top:15px}
+  .burger i:nth-child(2){top:20px}
+  .burger i:nth-child(3){top:25px}
+
+  .burger.open i:nth-child(1){transform:translateY(5px) rotate(45deg)}
+  .burger.open i:nth-child(2){opacity:0}
+  .burger.open i:nth-child(3){transform:translateY(-5px) rotate(-45deg)}
+
+  .hero{
+    padding:clamp(140px,18vw,190px) 0 clamp(80px,10vw,130px);
+    position:relative;
+    overflow:hidden;
+  }
+
+  .orb{
+    position:absolute;
+    top:110px;right:-140px;
+    width:min(520px,80vw);
+    height:min(520px,80vw);
+    border-radius:50%;
+    background:conic-gradient(from 200deg,rgba(124,92,255,.55),rgba(34,211,238,.35),transparent 65%);
+    filter:blur(90px);
+    opacity:.55;
+    animation:drift 22s linear infinite;
+    pointer-events:none;
+    will-change:transform;
+  }
+
+  @keyframes drift{to{transform:rotate(360deg)}}
+
+  .eyebrow{
+    display:inline-flex;
+    align-items:center;
+    gap:9px;
+    font-size:12.5px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--muted);
+    padding:8px 16px;
+    border:1px solid var(--line);
+    border-radius:999px;
+    background:var(--panel);
+    margin-bottom:30px;
+    max-width:100%;
+  }
+
+  .dot{
+    width:7px;height:7px;
+    border-radius:50%;
+    background:#3ddc97;
+    box-shadow:0 0 0 0 rgba(61,220,151,.6);
+    animation:pulse 2.4s infinite;
+    flex:none;
+  }
+
+  @keyframes pulse{
+    70%{box-shadow:0 0 0 9px rgba(61,220,151,0)}
+    100%{box-shadow:0 0 0 0 rgba(61,220,151,0)}
+  }
+
+  h1{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:clamp(2.1rem,6.4vw,4.9rem);
+    line-height:1.06;
+    letter-spacing:-.035em;
+    font-weight:700;
+    max-width:18ch;
+    margin-bottom:26px;
+    overflow-wrap:break-word;
+  }
+
+  h1 em{
+    font-style:normal;
+    background:linear-gradient(100deg,var(--accent) 10%,var(--accent-2) 90%);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+
+  .lede{
+    font-size:clamp(15.5px,1.6vw,17.5px);
+    color:var(--muted);
+    max-width:56ch;
+    margin-bottom:42px;
+  }
+
+  .actions{
+    display:flex;
+    flex-wrap:wrap;
+    gap:14px;
+    align-items:center;
+  }
+
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:9px;
+    padding:14px 28px;
+    border-radius:999px;
+    font-size:15px;
+    font-weight:500;
+    border:1px solid transparent;
+    transition:transform .3s var(--ease), box-shadow .3s var(--ease), background .3s var(--ease), border-color .3s var(--ease);
+    font-family:inherit;
+    text-align:center;
+    max-width:100%;
+    overflow-wrap:anywhere;
+    cursor:pointer;
+  }
+
+  .btn-fill{
+    background:linear-gradient(120deg,var(--accent),#5b8dff);
+    color:#fff;
+    box-shadow:0 14px 34px -14px rgba(124,92,255,.95);
+  }
+
+  .btn-fill:hover{transform:translateY(-2px);box-shadow:0 20px 40px -14px rgba(124,92,255,1)}
+
+  .btn-ghost{
+    border-color:var(--line);
+    background:var(--panel);
+    color:var(--text);
+  }
+
+  .btn-ghost:hover{background:var(--panel-hi);transform:translateY(-2px)}
+
+  .btn svg{transition:transform .3s var(--ease);flex:none}
+  .btn:hover svg{transform:translateX(3px)}
+
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+    gap:1px;
+    margin-top:clamp(56px,8vw,96px);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    overflow:hidden;
+    background:var(--line);
+  }
+
+  .stat{
+    background:rgba(10,10,16,.75);
+    padding:28px 26px;
+  }
+
+  .stat b{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:clamp(28px,3.4vw,34px);
+    font-weight:600;
+    letter-spacing:-.03em;
+    display:block;
+    line-height:1.15;
+  }
+
+  .stat span{
+    font-size:13px;
+    color:var(--muted);
+  }
+
+  section{
+    padding:clamp(72px,9vw,112px) 0;
+    position:relative;
+    scroll-margin-top:calc(var(--header-h) + 14px);
+  }
+
+  .sec-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    gap:32px 40px;
+    margin-bottom:clamp(38px,5vw,56px);
+    flex-wrap:wrap;
+  }
+
+  .sec-head > div{flex:1 1 320px;min-width:0}
+  .sec-head > p{flex:0 1 42ch}
+
+  .tag{
+    font-size:12.5px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--accent-2);
+    margin-bottom:14px;
+    display:block;
+  }
+
+  h2{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:clamp(1.6rem,3.9vw,2.9rem);
+    line-height:1.14;
+    letter-spacing:-.03em;
+    font-weight:600;
+    max-width:22ch;
+    overflow-wrap:break-word;
+  }
+
+  .sec-head p{
+    color:var(--muted);
+    font-size:15.5px;
+  }
+
+  .about-grid{
+    display:grid;
+    grid-template-columns:1.05fr .95fr;
+    gap:clamp(32px,5vw,64px);
+    align-items:start;
+  }
+
+  .about-copy p{
+    color:var(--muted);
+    margin-bottom:20px;
+    font-size:16px;
+  }
+
+  .about-copy p:last-child{margin-bottom:0}
+  .about-copy strong{color:var(--text);font-weight:500}
+
+  .principles{display:grid;gap:14px}
+
+  .principle{
+    border:1px solid var(--line);
+    background:var(--panel);
+    border-radius:var(--radius);
+    padding:24px 26px;
+    transition:background .35s var(--ease), transform .35s var(--ease), border-color .35s var(--ease);
+    position:relative;
+    overflow:hidden;
+  }
+
+  .principle::before{
+    content:'';
+    position:absolute;
+    inset:0 auto 0 0;
+    width:2px;
+    background:linear-gradient(180deg,var(--accent),var(--accent-2));
+    opacity:0;
+    transition:opacity .35s;
+  }
+
+  .principle:hover{
+    background:var(--panel-hi);
+    transform:translateX(5px);
+    border-color:rgba(124,92,255,.35);
+  }
+
+  .principle:hover::before{opacity:1}
+
+  .principle h3{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:16.5px;
+    font-weight:600;
+    margin-bottom:7px;
+    letter-spacing:-.01em;
+  }
+
+  .principle p{
+    font-size:14.5px;
+    color:var(--muted);
+  }
+
+  .projects{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+    gap:20px;
+  }
+
+  .card{
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    background:linear-gradient(170deg,rgba(255,255,255,.05),rgba(255,255,255,.015));
+    padding:32px 30px 30px;
+    display:flex;
+    flex-direction:column;
+    min-height:280px;
+    transition:transform .4s var(--ease), border-color .4s var(--ease), background .4s var(--ease);
+    position:relative;
+    overflow:hidden;
+  }
+
+  .card::after{
+    content:'';
+    position:absolute;
+    width:220px;height:220px;
+    right:-90px;top:-90px;
+    border-radius:50%;
+    background:radial-gradient(circle,rgba(124,92,255,.4),transparent 70%);
+    opacity:0;
+    transition:opacity .45s;
+    pointer-events:none;
+  }
+
+  .card:hover{
+    transform:translateY(-6px);
+    border-color:rgba(124,92,255,.4);
+    background:linear-gradient(170deg,rgba(255,255,255,.075),rgba(255,255,255,.02));
+  }
+
+  .card:hover::after{opacity:1}
+
+  .card-idx{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:12.5px;
+    color:var(--muted);
+    letter-spacing:.1em;
+    margin-bottom:auto;
+    position:relative;
+    z-index:1;
+  }
+
+  .card h3{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:clamp(18px,2vw,21px);
+    font-weight:600;
+    letter-spacing:-.02em;
+    margin:26px 0 10px;
+    position:relative;
+    z-index:1;
+  }
+
+  .card p{
+    font-size:14.5px;
+    color:var(--muted);
+    position:relative;
+    z-index:1;
+  }
+
+  .chips{
+    display:flex;
+    flex-wrap:wrap;
+    gap:7px;
+    margin-top:22px;
+    position:relative;
+    z-index:1;
+  }
+
+  .chips span{
+    font-size:11.5px;
+    letter-spacing:.03em;
+    padding:5px 11px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    color:var(--muted);
+    background:rgba(255,255,255,.02);
+  }
+
+  /* ===== Секция скачивания ===== */
+  .contact{padding:clamp(64px,8vw,100px) 0 clamp(80px,10vw,120px)}
+
+  .contact-box{
+    border:1px solid var(--line);
+    border-radius:28px;
+    padding:clamp(32px,5vw,64px) clamp(24px,4.5vw,56px);
+    background:
+      radial-gradient(600px 260px at 85% 0%, rgba(34,211,238,.14), transparent 65%),
+      linear-gradient(160deg,rgba(124,92,255,.14),rgba(255,255,255,.02));
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:32px 44px;
+    flex-wrap:wrap;
+  }
+
+  .contact-box > div{flex:1 1 300px;min-width:0}
+  .contact-box h2{max-width:16ch}
+  .contact-box p{color:var(--muted);margin-top:14px;font-size:15.5px;max-width:44ch}
+
+  .download-controls{
+    flex:1 1 340px;
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:14px;
+    min-width:0;
+  }
+
+  .format-toggle{
+    display:inline-flex;
+    padding:5px;
+    border:1px solid var(--line);
+    border-radius:999px;
+    background:rgba(7,7,11,.55);
+    gap:4px;
+    position:relative;
+  }
+
+  .format-toggle input{
+    position:absolute;
+    opacity:0;
+    pointer-events:none;
+  }
+
+  .format-toggle label{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:7px;
+    padding:9px 20px;
+    border-radius:999px;
+    font-size:14px;
+    font-weight:500;
+    color:var(--muted);
+    cursor:pointer;
+    transition:color .25s var(--ease), background .25s var(--ease), box-shadow .25s var(--ease);
+    white-space:nowrap;
+    user-select:none;
+    flex:1 1 auto;
+  }
+
+  .format-toggle label svg{
+    width:15px;
+    height:15px;
+    flex:none;
+    stroke:currentColor;
+    fill:none;
+    stroke-width:1.8;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+  }
+
+  .format-toggle input:checked + label{
+    color:#fff;
+    background:linear-gradient(120deg,var(--accent),#5b8dff);
+    box-shadow:0 10px 24px -12px rgba(124,92,255,.95);
+  }
+
+  .format-toggle input:focus-visible + label{
+    outline:2px solid var(--accent-2);
+    outline-offset:3px;
+  }
+
+  .download-hint{
+    font-size:12.5px;
+    color:var(--muted);
+    line-height:1.5;
+    text-align:right;
+    max-width:44ch;
+  }
+
+  .download-hint strong{color:var(--text);font-weight:500}
+
+  .download-btn{
+    width:100%;
+    max-width:320px;
+  }
+
+  footer{
+    border-top:1px solid var(--line);
+    padding:52px 0 40px;
+    background:rgba(8,8,13,.6);
+  }
+
+  .foot{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:24px 28px;
+    flex-wrap:wrap;
+  }
+
+  .foot-links{
+    display:flex;
+    gap:14px 26px;
+    font-size:14px;
+    color:var(--muted);
+    flex-wrap:wrap;
+    align-items:center;
+  }
+
+  .foot-links button,
+  .foot-links a{
+    color:inherit;
+    transition:color .25s;
+    text-align:left;
+    padding:0;
+  }
+
+  .foot-links button:hover,
+  .foot-links a:hover{color:var(--text)}
+
+  .copy{
+    font-size:13px;
+    color:var(--muted);
+    padding-top:28px;
+    margin-top:28px;
+    border-top:1px solid var(--line);
+    display:flex;
+    justify-content:space-between;
+    gap:12px 20px;
+    flex-wrap:wrap;
+  }
+
+  .to-top{
+    position:fixed;
+    right:max(14px,env(safe-area-inset-right));
+    bottom:max(14px,env(safe-area-inset-bottom));
+    width:50px;height:50px;
+    border-radius:16px;
+    border:1px solid var(--line);
+    background:rgba(14,14,22,.85);
+    color:var(--text);
+    display:grid;
+    place-items:center;
+    z-index:70;
+    opacity:0;
+    visibility:hidden;
+    transform:translateY(14px);
+    transition:opacity .4s var(--ease), visibility .4s var(--ease), transform .4s var(--ease), background .4s var(--ease), border-color .4s var(--ease), box-shadow .4s var(--ease);
+  }
+
+  @supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+    .to-top{
+      backdrop-filter:blur(14px);
+      -webkit-backdrop-filter:blur(14px);
+    }
+  }
+
+  .to-top.show{
+    opacity:1;
+    visibility:visible;
+    transform:none;
+  }
+
+  .to-top:hover{
+    background:linear-gradient(135deg,var(--accent),#5b8dff);
+    border-color:transparent;
+    transform:translateY(-3px);
+    box-shadow:0 14px 30px -12px rgba(124,92,255,.9);
+  }
+
+  .to-telegram{
+    position:fixed;
+    right:max(14px,env(safe-area-inset-right));
+    bottom:calc(max(14px,env(safe-area-inset-bottom)) + 64px);
+    width:50px;height:50px;
+    border-radius:16px;
+    border:1px solid var(--line);
+    background:rgba(14,14,22,.85);
+    color:var(--text);
+    display:grid;
+    place-items:center;
+    z-index:70;
+    transition:background .4s var(--ease), border-color .4s var(--ease), transform .4s var(--ease), box-shadow .4s var(--ease);
+  }
+
+  @supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+    .to-telegram{
+      backdrop-filter:blur(14px);
+      -webkit-backdrop-filter:blur(14px);
+    }
+  }
+
+  .to-telegram img{
+    width:26px;height:26px;
+    display:block;
+    transition:transform .4s var(--ease);
+    pointer-events:none;
+  }
+
+  .to-telegram:hover{
+    background:rgba(34,158,217,.15);
+    border-color:rgba(34,158,217,.55);
+    transform:translateY(-3px);
+    box-shadow:0 14px 30px -12px rgba(34,158,217,.85);
+  }
+
+  .to-telegram:hover img{transform:scale(1.08)}
+
+  .to-telegram::after{
+    content:'Подпишись на канал Nexora и следи за обновлениями';
+    position:absolute;
+    right:calc(100% + 14px);
+    top:50%;
+    transform:translateY(-50%) translateX(8px);
+    width:max-content;
+    max-width:min(260px,calc(100vw - 90px));
+    padding:10px 14px;
+    border-radius:12px;
+    border:1px solid var(--line);
+    background:rgba(13,13,21,.96);
+    color:var(--text);
+    font-size:13px;
+    line-height:1.45;
+    font-weight:400;
+    text-align:left;
+    white-space:normal;
+    opacity:0;
+    visibility:hidden;
+    pointer-events:none;
+    transition:opacity .3s var(--ease), visibility .3s var(--ease), transform .3s var(--ease);
+  }
+
+  @supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+    .to-telegram::after{
+      backdrop-filter:blur(14px);
+      -webkit-backdrop-filter:blur(14px);
+    }
+  }
+
+  .to-telegram:hover::after,
+  .to-telegram:focus-visible::after{
+    opacity:1;
+    visibility:visible;
+    transform:translateY(-50%) translateX(0);
+  }
+
+  .cookies{
+    position:fixed;
+    left:max(14px,env(safe-area-inset-left));
+    bottom:max(14px,env(safe-area-inset-bottom));
+    z-index:80;
+    width:min(430px,calc(100vw - 28px));
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    background:rgba(13,13,21,.94);
+    padding:24px 24px 22px;
+    box-shadow:0 28px 60px -24px rgba(0,0,0,.9);
+    opacity:0;
+    visibility:hidden;
+    transform:translateY(24px) scale(.97);
+    transition:opacity .5s var(--ease), visibility .5s var(--ease), transform .5s var(--ease);
+  }
+
+  @supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+    .cookies{
+      backdrop-filter:blur(20px) saturate(150%);
+      -webkit-backdrop-filter:blur(20px) saturate(150%);
+    }
+  }
+
+  .cookies.show{
+    opacity:1;
+    visibility:visible;
+    transform:none;
+  }
+
+  .cookies h4{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:16px;
+    font-weight:600;
+    margin-bottom:8px;
+    letter-spacing:-.01em;
+  }
+
+  .cookies p{
+    font-size:13.5px;
+    color:var(--muted);
+    line-height:1.6;
+    margin-bottom:18px;
+  }
+
+  .cookies p button{
+    color:var(--text);
+    border-bottom:1px solid rgba(124,92,255,.5);
+    padding:0;
+  }
+
+  .cookie-actions{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+
+  .cookie-actions button{
+    font-family:inherit;
+    font-size:13.5px;
+    font-weight:500;
+    padding:10px 20px;
+    border-radius:999px;
+    transition:transform .28s var(--ease), color .28s var(--ease), border-color .28s var(--ease), background .28s var(--ease);
+    border:1px solid var(--line);
+    background:transparent;
+    color:var(--muted);
+    flex:1 1 auto;
+  }
+
+  .cookie-actions button:hover{color:var(--text);border-color:rgba(255,255,255,.25)}
+
+  .cookie-actions .accept{
+    background:linear-gradient(120deg,var(--accent),#5b8dff);
+    border-color:transparent;
+    color:#fff;
+    box-shadow:0 10px 26px -12px rgba(124,92,255,.95);
+  }
+
+  .cookie-actions .accept:hover{transform:translateY(-2px)}
+
+  html.js .reveal{
+    opacity:0;
+    transform:translateY(26px);
+    transition:opacity .8s var(--ease), transform .8s var(--ease);
+  }
+
+  html.js .reveal.in{opacity:1;transform:none}
+
+  .modal{
+    position:fixed;
+    inset:0;
+    z-index:100;
+    display:grid;
+    place-items:center;
+    padding:20px;
+    opacity:0;
+    visibility:hidden;
+    transition:opacity .4s var(--ease), visibility .4s var(--ease);
+  }
+
+  .modal.open{
+    opacity:1;
+    visibility:visible;
+  }
+
+  .modal-overlay{
+    position:absolute;
+    inset:0;
+    background:rgba(3,3,8,.82);
+    cursor:pointer;
+  }
+
+  @supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+    .modal-overlay{
+      backdrop-filter:blur(10px);
+      -webkit-backdrop-filter:blur(10px);
+    }
+  }
+
+  .modal-box{
+    position:relative;
+    z-index:1;
+    width:min(780px,100%);
+    max-height:min(88vh,940px);
+    max-height:min(88dvh,940px);
+    display:flex;
+    flex-direction:column;
+    border:1px solid var(--line);
+    border-radius:24px;
+    background:#0d0d15;
+    box-shadow:0 40px 100px -30px rgba(0,0,0,.95);
+    transform:translateY(24px) scale(.97);
+    transition:transform .45s var(--ease);
+    overflow:hidden;
+  }
+
+  .modal.open .modal-box{transform:none}
+
+  .modal-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    padding:24px 32px 20px;
+    border-bottom:1px solid var(--line);
+    background:rgba(13,13,21,.96);
+    flex:none;
+  }
+
+  .modal-head h2{
+    font-size:clamp(1.15rem,2.4vw,1.55rem);
+    line-height:1.2;
+    max-width:none;
+  }
+
+  .modal-head span{
+    font-size:12px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--accent-2);
+    display:block;
+    margin-bottom:6px;
+  }
+
+  .modal-close{
+    width:40px;height:40px;
+    border-radius:12px;
+    border:1px solid var(--line);
+    background:var(--panel);
+    display:grid;
+    place-items:center;
+    transition:background .3s var(--ease), border-color .3s var(--ease), transform .3s var(--ease);
+    flex:none;
+    color:var(--text);
+  }
+
+  .modal-close:hover{
+    background:var(--panel-hi);
+    border-color:rgba(124,92,255,.5);
+    transform:rotate(90deg);
+  }
+
+  .modal-close svg{width:14px;height:14px}
+
+  .modal-body{
+    padding:28px 32px 36px;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:thin;
+    scrollbar-color:rgba(124,92,255,.5) transparent;
+  }
+
+  .modal-body::-webkit-scrollbar{width:8px}
+  .modal-body::-webkit-scrollbar-track{background:transparent}
+  .modal-body::-webkit-scrollbar-thumb{
+    background:rgba(124,92,255,.4);
+    border-radius:4px;
+  }
+  .modal-body::-webkit-scrollbar-thumb:hover{background:rgba(124,92,255,.7)}
+
+  .modal-body h3{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:17px;
+    font-weight:600;
+    letter-spacing:-.01em;
+    margin:28px 0 10px;
+    color:var(--text);
+  }
+
+  .modal-body h3:first-child{margin-top:0}
+
+  .modal-body p{
+    color:var(--muted);
+    font-size:14.5px;
+    line-height:1.75;
+    margin-bottom:14px;
+  }
+
+  .modal-body ul{
+    list-style:disc;
+    padding-left:22px;
+    margin-bottom:16px;
+  }
+
+  .modal-body ul li{
+    color:var(--muted);
+    font-size:14.5px;
+    line-height:1.7;
+    margin-bottom:8px;
+  }
+
+  .modal-body ul li::marker{color:var(--accent)}
+
+  .modal-body strong{color:var(--text);font-weight:500}
+
+  .modal-body a{
+    color:var(--accent-2);
+    border-bottom:1px solid rgba(34,211,238,.4);
+    transition:border-color .25s;
+    overflow-wrap:anywhere;
+  }
+
+  .modal-body a:hover{border-bottom-color:var(--accent-2)}
+
+  .modal-body .updated{
+    display:inline-block;
+    font-size:12.5px;
+    color:var(--muted);
+    padding:6px 14px;
+    border:1px solid var(--line);
+    border-radius:999px;
+    background:var(--panel);
+    margin-bottom:22px;
+  }
+
+  /* ===== NexSearch floating widget (по центру) ===== */
+  .nexsearch-backdrop{
+    position:fixed;
+    inset:0;
+    z-index:74;
+    background:rgba(3,3,8,.55);
+    opacity:0;
+    visibility:hidden;
+    pointer-events:none;
+    transition:opacity .4s var(--ease), visibility .4s var(--ease);
+  }
+
+  @supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+    .nexsearch-backdrop{
+      backdrop-filter:blur(6px);
+      -webkit-backdrop-filter:blur(6px);
+    }
+  }
+
+  .nexsearch-backdrop.visible{
+    opacity:1;
+    visibility:visible;
+    pointer-events:auto;
+  }
+
+  .nexsearch-float{
+    position:fixed;
+    top:50%;
+    left:50%;
+    z-index:75;
+    width:min(520px,calc(100vw - 40px));
+    max-height:calc(100vh - 48px);
+    max-height:calc(100dvh - 48px);
+    overflow-y:auto;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+    padding:22px 24px 24px;
+    border:1px solid var(--line);
+    border-radius:24px;
+    background:
+      radial-gradient(500px 200px at 100% 0%,rgba(34,211,238,.16),transparent 70%),
+      linear-gradient(160deg,rgba(124,92,255,.18),rgba(255,255,255,.02)),
+      #0d0d15;
+    box-shadow:0 40px 100px -30px rgba(0,0,0,.95),0 0 0 1px rgba(124,92,255,.08) inset;
+    opacity:0;
+    visibility:hidden;
+    transform:translate(-50%,-50%) scale(.94);
+    transition:opacity .4s var(--ease), visibility .4s var(--ease), transform .4s var(--ease);
+    scrollbar-width:thin;
+    scrollbar-color:rgba(124,92,255,.5) transparent;
+  }
+
+  .nexsearch-float::-webkit-scrollbar{width:6px}
+  .nexsearch-float::-webkit-scrollbar-track{background:transparent}
+  .nexsearch-float::-webkit-scrollbar-thumb{background:rgba(124,92,255,.4);border-radius:3px}
+
+  @supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+    .nexsearch-float{
+      backdrop-filter:blur(22px) saturate(160%);
+      -webkit-backdrop-filter:blur(22px) saturate(160%);
+    }
+  }
+
+  .nexsearch-float.visible{
+    opacity:1;
+    visibility:visible;
+    transform:translate(-50%,-50%) scale(1);
+  }
+
+  .nexsearch-float-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+  }
+
+  .nexsearch-float-brand{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:16px;
+    letter-spacing:-.01em;
+  }
+
+  .nexsearch-float-brand .brand-mark{
+    width:30px;height:30px;
+    border-radius:9px;
+  }
+
+  .nexsearch-float-brand .brand-mark svg{width:16px;height:16px}
+
+  .nexsearch-float-brand em{
+    font-style:normal;
+    background:linear-gradient(100deg,var(--accent) 10%,var(--accent-2) 90%);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+
+  .nexsearch-float-close{
+    width:34px;
+    height:34px;
+    min-width:34px;
+    min-height:34px;
+    border-radius:10px;
+    border:1px solid var(--line);
+    background:var(--panel);
+    display:grid;
+    place-items:center;
+    color:var(--muted);
+    flex:0 0 auto;
+    flex-shrink:0;
+    padding:0;
+    cursor:pointer;
+    position:relative;
+    z-index:2;
+    transition:background .25s,color .25s,border-color .25s,transform .25s;
+  }
+
+  .nexsearch-float-close svg{
+    width:14px;
+    height:14px;
+    display:block;
+    fill:none;
+    stroke:currentColor;
+    stroke-width:2;
+    stroke-linecap:round;
+    pointer-events:none;
+  }
+
+  .nexsearch-float-close:hover{
+    background:var(--panel-hi);
+    color:var(--text);
+    border-color:rgba(124,92,255,.5);
+    transform:rotate(90deg);
+  }
+
+  .nexsearch-float-message{
+    font-size:15.5px;
+    line-height:1.5;
+    color:var(--text);
+    font-weight:600;
+    letter-spacing:-.01em;
+    font-family:'Space Grotesk',sans-serif;
+  }
+
+  .nexsearch-float-message span{
+    color:var(--muted);
+    font-weight:400;
+    display:block;
+    font-size:13.5px;
+    margin-top:4px;
+    font-family:'Inter',sans-serif;
+    letter-spacing:0;
+  }
+
+  .nexsearch-float-form{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:6px 6px 6px 16px;
+    border:1px solid var(--line);
+    border-radius:999px;
+    background:rgba(7,7,11,.6);
+    transition:border-color .3s,box-shadow .3s;
+  }
+
+  .nexsearch-float-form:focus-within{
+    border-color:rgba(124,92,255,.65);
+    box-shadow:0 0 0 4px rgba(124,92,255,.15);
+  }
+
+  .nexsearch-float-form svg{
+    width:17px;height:17px;
+    stroke:var(--muted);
+    fill:none;
+    stroke-width:2;
+    stroke-linecap:round;
+    flex:none;
+    transition:stroke .3s;
+  }
+
+  .nexsearch-float-form:focus-within svg{stroke:var(--accent-2)}
+
+  .nexsearch-float-input{
+    flex:1;
+    min-width:0;
+    padding:11px 4px;
+    font-family:inherit;
+    font-size:15px;
+    color:var(--text);
+    background:transparent;
+    border:none;
+    outline:none;
+  }
+
+  .nexsearch-float-input::placeholder{color:#5a5a72}
+
+  .nexsearch-float-submit{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding:11px 22px;
+    border-radius:999px;
+    font-size:14px;
+    font-weight:500;
+    color:#fff;
+    background:linear-gradient(120deg,var(--accent),#5b8dff);
+    box-shadow:0 10px 24px -12px rgba(124,92,255,.95);
+    transition:transform .25s,box-shadow .25s;
+    flex:none;
+    white-space:nowrap;
+  }
+
+  .nexsearch-float-submit:hover{
+    transform:translateY(-1px);
+    box-shadow:0 14px 28px -12px rgba(124,92,255,1);
+  }
+
+  .nexsearch-float-hint{
+    font-size:12px;
+    color:var(--muted);
+    line-height:1.45;
+    padding-left:4px;
+  }
+
+  @media (max-width:1024px){
+    .about-grid{grid-template-columns:1fr}
+  }
+
+  @media (max-width:860px){
+    .nav-links{
+      position:fixed;
+      top:var(--header-h);
+      left:0;right:0;
+      flex-direction:column;
+      align-items:stretch;
+      gap:0;
+      background:rgba(8,8,13,.98);
+      border-bottom:1px solid var(--line);
+      padding:0 var(--pad);
+      max-height:0;
+      overflow:hidden;
+      visibility:hidden;
+      transition:max-height .45s var(--ease), padding .45s var(--ease), visibility 0s linear .45s;
+      font-size:16px;
+    }
+
+    @supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+      .nav-links{
+        backdrop-filter:blur(18px);
+        -webkit-backdrop-filter:blur(18px);
+      }
+    }
+
+    .nav-links.open{
+      max-height:calc(100vh - var(--header-h));
+      max-height:calc(100dvh - var(--header-h));
+      padding:18px var(--pad) 28px;
+      overflow-y:auto;
+      visibility:visible;
+      transition:max-height .45s var(--ease), padding .45s var(--ease), visibility 0s;
+    }
+
+    .nav-links li{width:100%}
+
+    .nav-links a{
+      width:100%;
+      padding:14px 0;
+      border-bottom:1px solid var(--line);
+      font-size:16px;
+      display:block;
+    }
+
+    .nav-links li:last-child a{border-bottom:none}
+
+    .burger{display:block}
+    .nav-cta{display:none}
+
+    body.nav-open{overflow:hidden}
+
+    .sec-head{align-items:flex-start}
+    .sec-head > p{flex:1 1 100%}
+  }
+
+  @media (max-width:620px){
+    .actions .btn{width:100%}
+
+    .contact-box{flex-direction:column;align-items:flex-start}
+    .download-controls{align-items:stretch;width:100%}
+    .format-toggle{width:100%}
+    .format-toggle label{padding:10px 14px;font-size:13.5px}
+    .download-hint{text-align:left}
+    .download-btn{max-width:none;width:100%}
+
+    .cookies{
+      left:10px;right:10px;
+      width:auto;
+      bottom:max(10px,env(safe-area-inset-bottom));
+    }
+
+    .foot{flex-direction:column;align-items:flex-start}
+    .copy{flex-direction:column}
+
+    .modal{padding:10px}
+    .modal-box{max-height:92vh;max-height:92dvh;border-radius:20px}
+    .modal-head{padding:18px 20px 16px}
+    .modal-head h2{font-size:1.05rem}
+    .modal-body{padding:22px 20px 28px}
+    .modal-body h3{font-size:16px}
+    .modal-body p,.modal-body ul li{font-size:14px}
+
+    .nexsearch-float{
+      width:calc(100vw - 28px);
+      max-height:calc(100vh - 32px);
+      max-height:calc(100dvh - 32px);
+      padding:18px 16px 20px;
+      border-radius:20px;
+      gap:12px;
+    }
+  }
+
+  @media (max-width:380px){
+    :root{--header-h:70px}
+    .brand{font-size:17px}
+    .nav-links{top:var(--header-h)}
+    .principle{padding:20px}
+    .card{padding:26px 22px;min-height:auto}
+    .modal-head{padding:16px 16px 14px}
+    .modal-body{padding:20px 16px 24px}
+  }
+
+  @media (hover:none){
+    .card:hover,
+    .principle:hover,
+    .btn:hover,
+    .sponsor:hover,
+    .to-top:hover,
+    .to-telegram:hover,
+    .nav-cta:hover{transform:none}
+    .modal-close:hover{transform:none}
+    .nexsearch-float-close:hover{transform:none}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    *,*::before,*::after{
+      animation-duration:.01ms !important;
+      animation-iteration-count:1 !important;
+      transition-duration:.01ms !important;
+      scroll-behavior:auto !important;
+    }
+    html.js .reveal{opacity:1;transform:none}
+    .orb{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header" id="top">
+  <div class="wrap">
+    <nav class="nav" aria-label="Основная навигация">
+      <a href="#top" class="brand" aria-label="FurryBrowser — на главную">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+            <circle cx="9" cy="9" r="1.2" fill="currentColor" stroke="none"/>
+            <circle cx="15" cy="9" r="1.2" fill="currentColor" stroke="none"/>
+            <path d="M7 3l2 3M17 3l-2 3"/>
+          </svg>
+        </span>
+        FurryBrowser
+      </a>
+
+      <ul class="nav-links" id="navLinks">
+        <li><a href="#about">О браузере</a></li>
+        <li><a href="#features">Возможности</a></li>
+        <li><a href="#contact">Контакты</a></li>
+      </ul>
+
+      <a href="#contact" class="nav-cta">Скачать</a>
+
+      <button class="burger" id="burger" type="button"
+              aria-label="Открыть меню" aria-expanded="false" aria-controls="navLinks">
+        <i></i><i></i><i></i>
+      </button>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <section class="hero">
+    <div class="orb" aria-hidden="true"></div>
+    <div class="wrap">
+      <span class="eyebrow"><span class="dot" aria-hidden="true"></span> Приватность и стиль — по умолчанию</span>
+
+      <h1>FurryBrowser — <em>браузер</em> для тех, кто не такой, как все</h1>
+
+      <p class="lede">
+        Быстрый, безопасный и настраиваемый браузер с поддержкой сообщества. Без рекламы,
+        без слежки и с уважением к вашей индивидуальности.
+      </p>
+
+      <div class="actions">
+        <a href="#features" class="btn btn-fill">
+          Узнать больше
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 8h9M8.5 4l4 4-4 4"/>
+          </svg>
+        </a>
+        <a href="#about" class="btn btn-ghost">О браузере</a>
+      </div>
+
+      <div class="stats reveal">
+        <div class="stat"><b data-count="2025">0</b><span>год основания</span></div>
+        <div class="stat"><b data-count="1" data-suffix="+">0</b><span>платформа (Linux)</span></div>
+        <div class="stat"><b data-count="100" data-suffix="%">0</b><span>открытый исходный код</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="about">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <div>
+          <span class="tag">О браузере</span>
+          <h2>Ваша приватность в надёжных лапах.</h2>
+        </div>
+        <p>FurryBrowser — независимый пушистый проект, созданный для удобства.</p>
+      </div>
+
+      <div class="about-grid">
+        <div class="about-copy reveal">
+          <p>
+            <strong>FurryBrowser</strong> — независимый пушистый проект, созданный для удобства.
+            Мы делаем браузер, который уважает вашу приватность и не мешает работать.
+          </p>
+          <p>
+            Браузер построен на <strong>Python</strong> с библиотеками <strong>PyQt6</strong> и
+            <strong>PyQtWebEngine</strong>. Доступен на <strong>Linux</strong> — скачайте
+            FurryBrowser в формате <strong>deb</strong> или <strong>AppImage</strong>.
+          </p>
+        </div>
+
+        <div class="principles reveal">
+          <div class="principle">
+            <h3>Приватность без компромиссов</h3>
+            <p>Никакой телеметрии, никаких скрытых запросов. Ваши данные остаются только у вас.</p>
+          </div>
+          <div class="principle">
+            <h3>Python + PyQt6 + PyQtWebEngine</h3>
+            <p>Построен на Python с использованием PyQt6 и PyQtWebEngine — открыто и понятно.</p>
+          </div>
+          <div class="principle">
+            <h3>Linux</h3>
+            <p>Доступен в форматах deb и AppImage для удобной установки на Linux.</p>
+          </div>
+          <div class="principle">
+            <h3>Сообщество</h3>
+            <p>Мы прислушиваемся к пользователям и вместе определяем, каким будет браузер.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <div>
+          <span class="tag">Возможности</span>
+          <h2>Всё, что нужно для комфортного сёрфинга</h2>
+        </div>
+        <p>Основные функции, которые уже работают.</p>
+      </div>
+
+      <div class="projects">
+        <article class="card reveal">
+          <span class="card-idx">01 / 15</span>
+          <h3>Приватное окно</h3>
+          <p>Режим инкогнито для работы без сохранения истории и данных.</p>
+          <div class="chips"><span>Приватность</span></div>
+        </article>
+        <article class="card reveal">
+          <span class="card-idx">02 / 15</span>
+          <h3>История</h3>
+          <p>Удобный просмотр и управление историей посещений.</p>
+          <div class="chips"><span>Удобство</span></div>
+        </article>
+        <article class="card reveal">
+          <span class="card-idx">03 / 15</span>
+          <h3>Загрузки</h3>
+          <p>Список загрузок с прогрессом и быстрым доступом к файлам.</p>
+          <div class="chips"><span>Удобство</span></div>
+        </article>
+        <article class="card reveal">
+          <span class="card-idx">04 / 15</span>
+          <h3>Удобные настройки</h3>
+          <p>Понятные настройки без лишних пунктов — всё под рукой.</p>
+          <div class="chips"><span>Интерфейс</span></div>
+        </article>
+        <article class="card reveal">
+          <span class="card-idx">05 / 15</span>
+          <h3>Очистка данных браузера</h3>
+          <p>Быстрое удаление кэша, cookie и истории одним действием.</p>
+          <div class="chips"><span>Приватность</span></div>
+        </article>
+        <article class="card reveal">
+          <span class="card-idx">06 / 15</span>
+          <h3>Найти на странице</h3>
+          <p>Поиск текста на текущей странице с подсветкой совпадений.</p>
+          <div class="chips"><span>Удобство</span></div>
+        </article>
+        <article class="card reveal">
+          <span class="card-idx">07 / 15</span>
+          <h3>Настройка масштаба</h3>
+          <p>Изменение масштаба страницы под ваши предпочтения.</p>
+          <div class="chips"><span>Доступность</span></div>
+        </article>
+        <article class="card reveal">
+          <span class="card-idx">08 / 15</span>
+          <h3>Микрофон</h3>
+          <p>Доступ к микрофону с явным запросом разрешения.</p>
+          <div class="chips"><span>Мультимедиа</span></div>
+        </article>
+        <article class="card reveal">
+          <span class="card-idx">09 / 15</span>
+          <h3>Камера</h3>
+          <p>Доступ к камере с явным запросом разрешения.</p>
+          <div class="chips"><span>Мультимедиа</span></div>
+        </article>
+        <article class="card reveal">
+          <span class="card-idx">10 / 15</span>
+          <h3>Геолокация и push-уведомления</h3>
+          <p>Геолокация и push-уведомления — только с вашего согласия.</p>
+          <div class="chips"><span>Приватность</span></div>
+        </article>
+        <article class="card reveal">
+          <span class="card-idx">11 / 15</span>
+          <h3>Поисковая система NexSearch</h3>
+          <p>Удобная поисковая система NexSearch прямо в браузере.</p>
+          <div class="chips"><span>Поиск</span></div>
+        </article>
+        <article class="card reveal">
+          <span class="card-idx">12 / 15</span>
+          <h3>Работа с вкладками</h3>
+          <p>Удобная работа с вкладками — открывайте, закрывайте и переключайтесь без лишних движений.</p>
+          <div class="chips"><span>Удобство</span></div>
+        </article>
+        <article class="card reveal">
+          <span class="card-idx">13 / 15</span>
+          <h3>Закладки</h3>
+          <p>Сохраняйте любимые страницы и возвращайтесь к ним в один клик.</p>
+          <div class="chips"><span>Удобство</span></div>
+        </article>
+        <article class="card reveal">
+          <span class="card-idx">14 / 15</span>
+          <h3>Современный дизайн</h3>
+          <p>Чистый и современный интерфейс, приятный для глаз.</p>
+          <div class="chips"><span>Интерфейс</span></div>
+        </article>
+        <article class="card reveal">
+          <span class="card-idx">15 / 15</span>
+          <h3>Открытый исходный код</h3>
+          <p>Код доступен для изучения и проверки — никаких чёрных ящиков.</p>
+          <div class="chips"><span>Открытость</span></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="contact" class="contact">
+    <div class="wrap">
+      <div class="contact-box reveal">
+        <div>
+          <h2>Скачайте FurryBrowser</h2>
+          <p>Доступен для Linux в двух форматах. Бесплатно и без регистрации.</p>
+        </div>
+
+        <div class="download-controls">
+          <div class="format-toggle" role="radiogroup" aria-label="Выбор формата установки">
+            <input type="radio" name="download-format" id="fmtDeb" value="deb">
+            <label for="fmtDeb">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3v12"/>
+                <path d="M7 10l5 5 5-5"/>
+                <path d="M5 20h14"/>
+              </svg>
+              deb (Debian)
+            </label>
+
+            <input type="radio" name="download-format" id="fmtAppImage" value="appimage">
+            <label for="fmtAppImage">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="4" y="4" width="16" height="16" rx="4"/>
+                <path d="M9 15V9l6 6V9"/>
+              </svg>
+              AppImage
+            </label>
+          </div>
+
+          <p class="download-hint" id="downloadHint">
+            Для Debian, Ubuntu и производных. Установка через <strong>dpkg -i</strong> или двойным кликом.
+          </p>
+
+          <a href="#" id="downloadBtn" class="btn btn-fill download-btn">
+            <span id="downloadBtnLabel">Скачать .deb</span>
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M8 3v7M5 8l3 3 3-3M3 14h10"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <a href="#top" class="brand" aria-label="FurryBrowser — наверх">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+            <circle cx="9" cy="9" r="1.2" fill="currentColor" stroke="none"/>
+            <circle cx="15" cy="9" r="1.2" fill="currentColor" stroke="none"/>
+            <path d="M7 3l2 3M17 3l-2 3"/>
+          </svg>
+        </span>
+        FurryBrowser
+      </a>
+
+      <nav class="foot-links" aria-label="Навигация в подвале">
+        <a href="#about">О браузере</a>
+        <a href="#features">Возможности</a>
+        <a href="mailto:ukrsdi@proton.me">ukrsdi@proton.me</a>
+        <a href="https://t.me/nexora_software" target="_blank" rel="noopener noreferrer">Telegram</a>
+        <button type="button" data-modal="privacyModal">Политика конфиденциальности</button>
+        <button type="button" data-modal="termsModal">Политика использования</button>
+      </nav>
+    </div>
+
+    <div class="copy">
+      <span>© <span id="year">2026</span> Nexora Software. Все права защищены.</span>
+      <span>Украина, Харьков</span>
+    </div>
+  </div>
+</footer>
+
+<a href="https://t.me/nexora_software" class="to-telegram" target="_blank" rel="noopener noreferrer" aria-label="Подписаться на Telegram-канал Nexora Software">
+  <img src="https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg" alt="" width="26" height="26" loading="lazy">
+</a>
+
+<button class="to-top" id="toTop" type="button" aria-label="Наверх">
+  <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M8 13V3M4 7l4-4 4 4"/>
+  </svg>
+</button>
+
+<!-- ===== NexSearch floating widget (по центру) ===== -->
+<div class="nexsearch-backdrop" id="nexsearchBackdrop" aria-hidden="true"></div>
+
+<aside class="nexsearch-float" id="nexsearchFloat" role="dialog" aria-modal="true" aria-labelledby="nexsearchFloatTitle" aria-label="Поиск через NexSearch">
+  <div class="nexsearch-float-head">
+    <div class="nexsearch-float-brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="6"/>
+          <path d="M16 16l4 4"/>
+        </svg>
+      </span>
+      Nex<em>Search</em>
+    </div>
+    <button class="nexsearch-float-close" id="nexsearchFloatClose" type="button" aria-label="Скрыть поиск NexSearch" title="Скрыть">
+      <svg viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="nexsearch-float-message" id="nexsearchFloatTitle">
+    Хотите что-то узнать новое?
+    <span>Поищите в интернете через NexSearch.</span>
+  </div>
+
+  <form class="nexsearch-float-form" id="nexsearchFloatForm" role="search">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="11" cy="11" r="7"/>
+      <path d="M16.5 16.5L21 21"/>
+    </svg>
+    <input class="nexsearch-float-input" id="nexsearchFloatInput" type="text"
+           placeholder="Введите запрос…" autocomplete="off" spellcheck="false"
+           aria-label="Поисковый запрос для NexSearch">
+    <button type="submit" class="nexsearch-float-submit">Найти</button>
+  </form>
+
+  <div class="nexsearch-float-hint">Откроется NexSearch с результатами по вашему запросу.</div>
+</aside>
+
+<div class="cookies" id="cookies" role="dialog" aria-label="Использование cookie">
+  <h4>Мы используем cookie</h4>
+  <p>
+    Технические cookie нужны, чтобы сайт работал. Аналитические помогают понять, какие разделы
+    читают чаще. Подробности — в <button type="button" data-modal="privacyModal">политике конфиденциальности</button>.
+  </p>
+  <div class="cookie-actions">
+    <button class="accept" id="cookieAccept" type="button">Принять все</button>
+    <button id="cookieEssential" type="button">Только необходимые</button>
+  </div>
+</div>
+
+<div class="modal" id="privacyModal" role="dialog" aria-modal="true" aria-labelledby="privacyTitle" aria-hidden="true">
+  <div class="modal-overlay" data-close></div>
+  <div class="modal-box">
+    <header class="modal-head">
+      <div>
+        <span>Документ</span>
+        <h2 id="privacyTitle">Политика конфиденциальности</h2>
+      </div>
+      <button class="modal-close" type="button" data-close aria-label="Закрыть">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <path d="M3 3l10 10M13 3L3 13"/>
+        </svg>
+      </button>
+    </header>
+    <div class="modal-body">
+      <span class="updated">Обновлено: 28 сентября 2026</span>
+
+      <h3>1. Общие положения</h3>
+      <p>
+        Настоящая Политика конфиденциальности описывает, какие данные собирает FurryBrowser
+        (далее — «мы», «команда») при использовании сайта и браузера, а также как мы эти данные
+        обрабатываем и защищаем.
+      </p>
+      <p>
+        Используя наш сайт или браузер, вы соглашаетесь с условиями этой Политики.
+        Если вы не согласны с ними — пожалуйста, прекратите использование.
+      </p>
+
+      <h3>2. Какие данные мы собираем</h3>
+      <p>Мы придерживаемся принципа минимального сбора данных. В зависимости от продукта мы можем обрабатывать:</p>
+      <ul>
+        <li>обезличенную статистику использования сайта (посещаемость, источник перехода);</li>
+        <li>технические данные о работе браузера: версия, платформа, код ошибки (только при явной отправке отчёта);</li>
+        <li>адрес электронной почты — только если вы сами написали нам.</li>
+      </ul>
+      <p>
+        Мы <strong>не собираем</strong> историю просмотров, пароли, платёжные данные
+        и любую другую информацию, которая не требуется для работы продукта.
+      </p>
+
+      <h3>3. Как мы используем данные</h3>
+      <p>Собранные данные используются исключительно для:</p>
+      <ul>
+        <li>диагностики ошибок и улучшения стабильности;</li>
+        <li>подготовки обезличенной статистики (количество пользователей, активность);</li>
+        <li>ответа на ваши обращения.</li>
+      </ul>
+      <p>Мы не используем ваши данные для рекламы и не строим на них рекламные профили.</p>
+
+      <h3>4. Хранение и защита</h3>
+      <p>
+        Данные хранятся на защищённых серверах, доступ к которым ограничен. Передача данных между
+        клиентом и сервером защищена шифрованием. Мы регулярно обновляем зависимости и следим
+        за безопасностью инфраструктуры.
+      </p>
+      <p>
+        Данные, не требующие длительного хранения, удаляются автоматически.
+      </p>
+
+      <h3>5. Передача третьим лицам</h3>
+      <p>
+        Мы не продаём и не передаём ваши персональные данные третьим лицам. Исключение составляют
+        случаи, прямо предусмотренные законом, либо когда передача необходима для работы самого
+        сервиса (например, хостинг-провайдер обрабатывает технические логи).
+      </p>
+
+      <h3>6. Cookie и локальное хранилище</h3>
+      <p>
+        На сайте используются технические cookie и localStorage — чтобы запомнить ваш выбор
+        в баннере cookie и корректно работать с навигацией. Аналитические cookie могут
+        использоваться для обезличенной статистики посещаемости.
+      </p>
+      <p>
+        Вы можете в любой момент отключить cookie в настройках браузера или очистить локальное
+        хранилище сайта — это не повлияет на работу основных функций.
+      </p>
+
+      <h3>7. Права пользователя</h3>
+      <p>Вы имеете право:</p>
+      <ul>
+        <li>запросить информацию о том, какие ваши данные у нас есть;</li>
+        <li>запросить удаление ваших данных из наших систем;</li>
+        <li>отозвать согласие на обработку — это может ограничить работу продукта;</li>
+        <li>написать нам с любым вопросом об обработке данных.</li>
+      </ul>
+
+      <h3>8. Данные несовершеннолетних</h3>
+      <p>
+        Наши продукты не предназначены для сбора данных детей младше 13 лет. Если вам стало
+        известно, что такой пользователь передал нам свои данные — сообщите нам, и мы их удалим.
+      </p>
+
+      <h3>9. Изменения в Политике</h3>
+      <p>
+        Мы можем обновлять эту Политику. Актуальная версия всегда доступна на этой странице.
+        Дата последнего обновления указана в начале документа.
+      </p>
+
+      <h3>10. Контакты</h3>
+      <p>
+        По любым вопросам, связанным с обработкой данных, пишите на
+        <a href="mailto:ukrsdi@proton.me">ukrsdi@proton.me</a>. Мы отвечаем в течение рабочего дня.
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="termsModal" role="dialog" aria-modal="true" aria-labelledby="termsTitle" aria-hidden="true">
+  <div class="modal-overlay" data-close></div>
+  <div class="modal-box">
+    <header class="modal-head">
+      <div>
+        <span>Документ</span>
+        <h2 id="termsTitle">Политика использования</h2>
+      </div>
+      <button class="modal-close" type="button" data-close aria-label="Закрыть">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <path d="M3 3l10 10M13 3L3 13"/>
+        </svg>
+      </button>
+    </header>
+    <div class="modal-body">
+      <span class="updated">Обновлено: 28 сентября 2026</span>
+
+      <h3>1. Общие положения</h3>
+      <p>
+        Настоящая Политика использования регулирует порядок работы с браузером FurryBrowser
+        и сопутствующими сервисами. Устанавливая или используя браузер, вы принимаете эти условия.
+      </p>
+
+      <h3>2. Разрешённое использование</h3>
+      <p>Вы можете использовать FurryBrowser:</p>
+      <ul>
+        <li>в личных, некоммерческих целях;</li>
+        <li>в образовательных целях;</li>
+        <li>для внутренних задач вашей команды.</li>
+      </ul>
+
+      <h3>3. Что запрещено</h3>
+      <p>При использовании браузера запрещается:</p>
+      <ul>
+        <li>перепродавать, сдавать в аренду или распространять браузер от своего имени без разрешения;</li>
+        <li>изменять код, декомпилировать или пытаться извлечь исходники, если это прямо не разрешено лицензией;</li>
+        <li>использовать браузер для спама, мошенничества или иной незаконной деятельности;</li>
+        <li>создавать чрезмерную нагрузку на серверы (DDoS, автоматизированные атаки);</li>
+        <li>обходить технические ограничения, встроенные в продукт.</li>
+      </ul>
+
+      <h3>4. Интеллектуальная собственность</h3>
+      <p>
+        Весь код, дизайн, тексты, логотипы и иные материалы, связанные с FurryBrowser,
+        являются нашей интеллектуальной собственностью. Использование их без письменного
+        разрешения не допускается, кроме случаев, прямо описанных в лицензии.
+      </p>
+      <p>
+        Браузер распространяется под лицензией MIT — вы можете свободно использовать,
+        изменять и распространять его при условии сохранения уведомления об авторских правах.
+      </p>
+
+      <h3>5. Отказ от гарантий</h3>
+      <p>
+        Наш браузер предоставляется «как есть». Мы стараемся делать его стабильным и полезным,
+        но не гарантируем, что он будет работать без ошибок или подходить для ваших конкретных задач.
+      </p>
+      <p>
+        Мы не несём ответственности за возможные убытки, потерю данных или иные последствия,
+        возникшие в результате использования или невозможности использования браузера.
+      </p>
+
+      <h3>6. Ограничение ответственности</h3>
+      <p>
+        В максимально допустимой законом степени наша ответственность ограничена. Мы не отвечаем
+        за действия третьих лиц, за сбои в работе сайтов, хостинга или иных внешних сервисов.
+      </p>
+
+      <h3>7. Прекращение доступа</h3>
+      <p>
+        Мы оставляем за собой право ограничить или прекратить доступ к продукту, если пользователь
+        нарушает условия этой Политики, создаёт угрозу для других пользователей или для
+        стабильности сервиса.
+      </p>
+
+      <h3>8. Обновления и изменения</h3>
+      <p>
+        Мы можем обновлять браузер и эту Политику. Продолжая использовать продукт после
+        обновления, вы принимаете новую версию условий. Актуальная версия всегда доступна
+        на этой странице.
+      </p>
+
+      <h3>9. Обратная связь</h3>
+      <p>
+        Если вы нашли ошибку, хотите предложить улучшение или сообщить о нарушении —
+        напишите нам на <a href="mailto:ukrsdi@proton.me">ukrsdi@proton.me</a>.
+        Мы читаем все сообщения.
+      </p>
+
+      <h3>10. Контакты</h3>
+      <p>
+        По любым вопросам, связанным с использованием браузера, пишите на
+        <a href="mailto:ukrsdi@proton.me">ukrsdi@proton.me</a>.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  document.documentElement.classList.add('js');
+
+  var header   = document.querySelector('.site-header');
+  var toTop    = document.getElementById('toTop');
+  var cookies  = document.getElementById('cookies');
+  var burger   = document.getElementById('burger');
+  var navLinks = document.getElementById('navLinks');
+  var sections = Array.prototype.slice.call(document.querySelectorAll('main section[id]'));
+  var anchors  = Array.prototype.slice.call(navLinks.querySelectorAll('a'));
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var yearEl = document.getElementById('year');
+  if (yearEl) yearEl.textContent = new Date().getFullYear();
+
+  var ticking = false;
+  var navOpen = false;
+
+  /* ===== Выбор формата скачивания ===== */
+  var DOWNLOAD_KEY = 'furrybrowser_download_format';
+
+  var DOWNLOAD_LINKS = {
+    deb: {
+      url: 'https://github.com/B1TNEYM7919/FurryBrowser/releases/download/FurryBrowser/furrybrowser_1.0_amd64.deb',
+      label: 'Скачать .deb',
+      hint: 'Для Debian, Ubuntu и производных. Установка через <strong>dpkg -i</strong> или двойным кликом.'
+    },
+    appimage: {
+      url: 'https://github.com/B1TNEYM7919/FurryBrowser/releases/download/FurryBrowser/FurryBrowser-1.0-x86_64.AppImage',
+      label: 'Скачать AppImage',
+      hint: 'Универсальный формат для любого Linux. <strong>chmod +x</strong> и запуск без установки.'
+    }
+  };
+
+  var fmtDeb      = document.getElementById('fmtDeb');
+  var fmtAppImage = document.getElementById('fmtAppImage');
+  var downloadBtn = document.getElementById('downloadBtn');
+  var downloadLabel = document.getElementById('downloadBtnLabel');
+  var downloadHint  = document.getElementById('downloadHint');
+
+  function applyDownloadFormat(format) {
+    if (format !== 'deb' && format !== 'appimage') format = 'deb';
+    var data = DOWNLOAD_LINKS[format];
+
+    if (fmtDeb) fmtDeb.checked = (format === 'deb');
+    if (fmtAppImage) fmtAppImage.checked = (format === 'appimage');
+    if (downloadBtn) downloadBtn.setAttribute('href', data.url);
+    if (downloadLabel) downloadLabel.textContent = data.label;
+    if (downloadHint) downloadHint.innerHTML = data.hint;
+
+    try { localStorage.setItem(DOWNLOAD_KEY, format); } catch (err) {}
+  }
+
+  var initialFormat = 'deb';
+  try {
+    var savedFormat = localStorage.getItem(DOWNLOAD_KEY);
+    if (savedFormat === 'appimage' || savedFormat === 'deb') initialFormat = savedFormat;
+  } catch (err) {}
+  applyDownloadFormat(initialFormat);
+
+  if (fmtDeb) fmtDeb.addEventListener('change', function () {
+    if (fmtDeb.checked) applyDownloadFormat('deb');
+  });
+  if (fmtAppImage) fmtAppImage.addEventListener('change', function () {
+    if (fmtAppImage.checked) applyDownloadFormat('appimage');
+  });
+
+  /* ===== NexSearch floating dialog (по центру) ===== */
+  var nexFloat      = document.getElementById('nexsearchFloat');
+  var nexBackdrop   = document.getElementById('nexsearchBackdrop');
+  var nexFloatClose = document.getElementById('nexsearchFloatClose');
+  var nexFloatForm  = document.getElementById('nexsearchFloatForm');
+  var nexFloatInput = document.getElementById('nexsearchFloatInput');
+
+  var NEXSEARCH_URL_TEMPLATE = 'https://nex-search-io.vercel.app/?q=%s';
+
+  var nexDismissed = false;
+  try {
+    nexDismissed = sessionStorage.getItem('furrybrowser_nexsearch_dismissed') === '1';
+  } catch (err) {}
+
+  function buildNexSearchUrl(query) {
+    return NEXSEARCH_URL_TEMPLATE.replace('%s', encodeURIComponent(query));
+  }
+
+  function showNexFloat() {
+    if (!nexFloat || nexDismissed) return;
+    nexFloat.classList.add('visible');
+    nexFloat.setAttribute('aria-hidden', 'false');
+    if (nexBackdrop) nexBackdrop.classList.add('visible');
+  }
+
+  function hideNexFloat() {
+    if (!nexFloat) return;
+    nexFloat.classList.remove('visible');
+    nexFloat.setAttribute('aria-hidden', 'true');
+    if (nexBackdrop) nexBackdrop.classList.remove('visible');
+  }
+
+  if (nexFloatClose) {
+    nexFloatClose.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      nexDismissed = true;
+      try { sessionStorage.setItem('furrybrowser_nexsearch_dismissed', '1'); } catch (err) {}
+      hideNexFloat();
+    });
+  }
+
+  if (nexBackdrop) {
+    nexBackdrop.addEventListener('click', hideNexFloat);
+  }
+
+  if (nexFloatForm) {
+    nexFloatForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var q = nexFloatInput ? nexFloatInput.value.trim() : '';
+      if (!q) {
+        if (nexFloatInput) nexFloatInput.focus();
+        return;
+      }
+      var url = buildNexSearchUrl(q);
+      window.open(url, '_blank', 'noopener,noreferrer');
+      if (nexFloatInput) nexFloatInput.value = '';
+    });
+  }
+
+  /* ===== scroll handling ===== */
+  function onScroll() {
+    var y = window.scrollY || window.pageYOffset;
+
+    if (header) header.classList.toggle('stuck', y > 40);
+    if (toTop)  toTop.classList.toggle('show', y > 640);
+
+    if (!nexDismissed) {
+      if (y > 220) showNexFloat();
+      else hideNexFloat();
+    }
+
+    var current = '';
+    for (var i = 0; i < sections.length; i++) {
+      if (y >= sections[i].offsetTop - 160) current = sections[i].id;
+    }
+
+    anchors.forEach(function (a) {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+    });
+
+    ticking = false;
+  }
+
+  function requestScroll() {
+    if (!ticking) {
+      ticking = true;
+      window.requestAnimationFrame(onScroll);
+    }
+  }
+
+  window.addEventListener('scroll', requestScroll, { passive: true });
+  window.addEventListener('resize', requestScroll, { passive: true });
+  onScroll();
+
+  if (toTop) {
+    toTop.addEventListener('click', function () {
+      window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+    });
+  }
+
+  function setNav(open) {
+    navOpen = open;
+    if (!burger || !navLinks) return;
+    burger.classList.toggle('open', open);
+    navLinks.classList.toggle('open', open);
+    burger.setAttribute('aria-expanded', open ? 'true' : 'false');
+    burger.setAttribute('aria-label', open ? 'Закрыть меню' : 'Открыть меню');
+    document.body.classList.toggle('nav-open', open);
+  }
+
+  if (burger && navLinks) {
+    burger.addEventListener('click', function () {
+      setNav(!navOpen);
+    });
+
+    navLinks.addEventListener('click', function (e) {
+      if (e.target.closest('a')) setNav(false);
+    });
+
+    document.addEventListener('click', function (e) {
+      if (!navOpen) return;
+      if (navLinks.contains(e.target) || burger.contains(e.target)) return;
+      setNav(false);
+    });
+  }
+
+  var modals = Array.prototype.slice.call(document.querySelectorAll('.modal'));
+  var lastFocused = null;
+
+  function lockBody() {
+    document.body.classList.add('locked');
+  }
+
+  function unlockBody() {
+    var anyOpen = modals.some(function (m) { return m.classList.contains('open'); });
+    if (!anyOpen) document.body.classList.remove('locked');
+  }
+
+  function openModal(id) {
+    var modal = document.getElementById(id);
+    if (!modal) return;
+    lastFocused = document.activeElement;
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+    lockBody();
+    var closeBtn = modal.querySelector('.modal-close');
+    if (closeBtn) closeBtn.focus({ preventScroll: true });
+  }
+
+  function closeModal(modal) {
+    if (!modal) return;
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+    unlockBody();
+    if (lastFocused && typeof lastFocused.focus === 'function') {
+      lastFocused.focus({ preventScroll: true });
+    }
+  }
+
+  document.addEventListener('click', function (e) {
+    var opener = e.target.closest('[data-modal]');
+    if (opener) {
+      e.preventDefault();
+      openModal(opener.getAttribute('data-modal'));
+      return;
+    }
+
+    var closer = e.target.closest('[data-close]');
+    if (closer) {
+      var modal = closer.closest('.modal');
+      if (modal) closeModal(modal);
+    }
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      if (nexFloat && nexFloat.classList.contains('visible')) {
+        hideNexFloat();
+      }
+      if (navOpen) setNav(false);
+      modals.forEach(function (m) {
+        if (m.classList.contains('open')) closeModal(m);
+      });
+      if (cookies && cookies.classList.contains('show')) closeCookies('essential');
+    }
+  });
+
+  var COOKIE_KEY = 'furrybrowser-cookie-choice';
+  var cookieTimer = null;
+
+  function readChoice() {
+    try { return window.localStorage.getItem(COOKIE_KEY); }
+    catch (err) { return null; }
+  }
+
+  function saveChoice(value) {
+    try { window.localStorage.setItem(COOKIE_KEY, value); }
+    catch (err) {}
+  }
+
+  function openCookies() {
+    if (!cookies) return;
+    cookies.classList.add('show');
+    document.body.classList.add('cookies-visible');
+  }
+
+  function closeCookies(value) {
+    if (cookieTimer) { clearTimeout(cookieTimer); cookieTimer = null; }
+    if (value) saveChoice(value);
+    if (!cookies) return;
+    cookies.classList.remove('show');
+    document.body.classList.remove('cookies-visible');
+  }
+
+  if (cookies && !readChoice()) {
+    cookieTimer = window.setTimeout(openCookies, 1400);
+  }
+
+  var acceptBtn = document.getElementById('cookieAccept');
+  var essBtn    = document.getElementById('cookieEssential');
+
+  if (acceptBtn) acceptBtn.addEventListener('click', function () { closeCookies('all'); });
+  if (essBtn)    essBtn.addEventListener('click',    function () { closeCookies('essential'); });
+
+  var revealItems = Array.prototype.slice.call(document.querySelectorAll('.reveal'));
+
+  if (reduceMotion || !('IntersectionObserver' in window)) {
+    revealItems.forEach(function (el) { el.classList.add('in'); });
+  } else {
+    var revealObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry, i) {
+        if (!entry.isIntersecting) return;
+        var delay = Math.min(i * 70, 280);
+        window.setTimeout(function () {
+          entry.target.classList.add('in');
+        }, delay);
+        revealObserver.unobserve(entry.target);
+      });
+    }, { threshold: 0.14, rootMargin: '0px 0px -60px 0px' });
+
+    revealItems.forEach(function (el) { revealObserver.observe(el); });
+  }
+
+  var counters = Array.prototype.slice.call(document.querySelectorAll('[data-count]'));
+
+  function runCounter(el) {
+    var target = parseInt(el.getAttribute('data-count'), 10) || 0;
+    var suffix = el.getAttribute('data-suffix') || '';
+
+    if (reduceMotion) {
+      el.textContent = target + suffix;
+      return;
+    }
+
+    var duration = 1400;
+    var start = null;
+
+    function step(now) {
+      if (start === null) start = now;
+      var progress = Math.min((now - start) / duration, 1);
+      var eased = 1 - Math.pow(1 - progress, 3);
+      el.textContent = Math.round(target * eased) + suffix;
+      if (progress < 1) window.requestAnimationFrame(step);
+    }
+
+    window.requestAnimationFrame(step);
+  }
+
+  if (!('IntersectionObserver' in window)) {
+    counters.forEach(runCounter);
+  } else {
+    var counterObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        runCounter(entry.target);
+        counterObserver.unobserve(entry.target);
+      });
+    }, { threshold: 0.5 });
+
+    counters.forEach(function (c) { counterObserver.observe(c); });
+  }
+
+  document.addEventListener('click', function (e) {
+    var link = e.target.closest('a[href^="#"]');
+    if (!link) return;
+
+    var hash = link.getAttribute('href');
+    if (!hash || hash === '#') return;
+
+    var target = document.querySelector(hash);
+    if (!target) return;
+
+    e.preventDefault();
+
+    var headerH = header ? header.offsetHeight : 0;
+    var top = target.getBoundingClientRect().top + window.scrollY - headerH - 14;
+
+    window.scrollTo({ top: Math.max(top, 0), behavior: reduceMotion ? 'auto' : 'smooth' });
+
+    if (history.replaceState) history.replaceState(null, '', hash);
+  });
+})();
+</script>
+
+</body>
+</html>
